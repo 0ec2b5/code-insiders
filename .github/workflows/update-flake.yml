@@ -1,0 +1,33 @@
+name: Update flake
+
+on:
+  schedule: 
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CODE_INSIDERS_CONTENTS_TOKEN }}
+
+      - name: Install nix
+        uses: cachix/install-nix-action@v26
+
+      - name: Update lockfile
+        run: |
+          nix flake update
+
+      - name: Update hash
+        run: |
+          hash="$(nix-prefetch-url --unpack --name code-insiders-x64.tar.gz 'https://code.visualstudio.com/sha/download?build=insider&os=linux-x64')"
+          sed -E -i 's/sha256 = "[^"]+"/sha256 = "'"$hash"'"/' flake.nix
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with: 
+          commit_message: "nix: update flake"
